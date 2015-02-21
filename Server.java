@@ -1,28 +1,19 @@
 package edu.upenn.cis.cis455.webserver;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.awt.image.Raster;
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.file.Files;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Queue;
-
 import javax.imageio.ImageIO;
-import javax.imageio.stream.ImageInputStream;
 
 public class Server {
 	
@@ -32,6 +23,7 @@ public class Server {
 	ServerSocket 	serverSocket;
 	Socket			clientSocket;
 	BufferedReader	clientInput;
+	BufferedImage	imageInput;
 	OutputStream 	serverOutput;
 	Date 			currentDate;
 	Boolean			listening;
@@ -95,7 +87,7 @@ public class Server {
 			String fileName			= fileReq[1];
 			String res = "";
 			
-			// Requesting a directory
+			// requesting a directory
 			if (fileName.endsWith("/")) {	// directory
 				
 				try {
@@ -103,7 +95,7 @@ public class Server {
 					File[] listOfFiles = folder.listFiles();
 				
 					// creating the request
-					res = "HTTP/1.1 200 OK\r\n"		// Basic request header
+					res = "HTTP/1.1 200 OK\r\n"
 							+ "Date: " +  formatD.format(currentDate)+ "\r\n"
 							+ "Content-Type: text/html; charset=UTF-8\r\n"
 							+ "Connection: close\r\n\r\n"
@@ -142,74 +134,22 @@ public class Server {
 							+ "</html>";
 				}
 			
-			// Requesting an image
-			} else if (fileName.endsWith(".jpg")) {
+			// requesting an image
+			} else if (fileName.endsWith(".jpg") || fileName.endsWith(".gif") || fileName.endsWith(".png")) {
 				
 				fileName = absolutePath + fileName;
 				File image = new File(fileName);
-				FileInputStream imageInput = null;
+				imageInput = null;
 				
 				try {
 					
-					imageInput = new FileInputStream(image);
-					BufferedInputStream imageStream = new BufferedInputStream(imageInput);
-					
-					int imgContent;
+					imageInput = ImageIO.read(image);
 					
 					// creating the request
 					res = "HTTP/1.1 200 OK\r\n"
 							+ "Date: " +  formatD.format(currentDate)+ "\r\n"
 							+ "Content-Type: image/jpg\r\n"
-							+ "Connection: close\r\n\r\n";		// Basic request header	
-					
-					while((imgContent = imageStream.read()) != -1) {
-						String text = Integer.toString(imgContent, 2);
-						while (text.length() < 8) {
-							text = "0" + text;
-						}
-						res += text;
-						System.out.println("Reading image: " + text);
-					}
-					
-					imageStream.close();
-					System.out.println("Done reading image");
-					
-//					Raster imageRaster = null;
-//					DataBufferByte imageData = null;
-//					int numArrs = 0;
-//					
-//					byte[] imageContent = Files.readAllBytes(image.toPath());
-//					
-//					res += imageContent;
-					
-//					imageRaster = imageInput.getData();
-//					imageData = (DataBufferByte) imageRaster.getDataBuffer();
-//					numArrs = imageData.getNumBanks() + 5;
-//					
-//					System.out.println(numArrs);
-//					
-//					while(numArrs > 0) {
-//						res += imageData.getData();
-//						numArrs--;
-//					}
-					
-					
-					
-//					res += imageData.getData();
-					
-//					imageInput.
-					
-//					imageRaster.
-//					
-//					while ((dataBit = imageInput.get) != -1) {
-//						res += ) dataBit;
-//						System.out.println("Reading in image data: " + dataBit);
-//					}
-					
-					System.out.println("I finish reading image data");
-					System.out.println(res);
-				
-//					imageInput.close();
+							+ "Connection: close\r\n\r\n";
 					
 				} catch (FileNotFoundException e) {
 					e.printStackTrace();
@@ -218,7 +158,7 @@ public class Server {
 					res = "HTTP/1.1 404 Not Found\r\n"
 							+ "Date: " +  formatD.format(currentDate)+ "\r\n"
 							+ "Content-Type: text/html; charset=UTF-8\r\n"
-							+ "Connection: close\r\n\r\n"		// Basic request header
+							+ "Connection: close\r\n\r\n"
 							+ "<html>\r\n"
 							+ "<head>\r\n"
 							+ "<title>404 Not Found</title>\r\n"
@@ -232,8 +172,7 @@ public class Server {
 					e.printStackTrace();
 				}
 				
-			
-			// Requesting a file
+			// requesting a file
 			} else  {
 				
 				fileName = absolutePath + fileName;
@@ -278,17 +217,31 @@ public class Server {
 				}
 			}
 			
-			// Responding to the request
+			// responding to the request
 			try {
 				serverOutput	= clientSocket.getOutputStream();
-				serverOutput.write(res.getBytes());
+				
+				// image requests
+				if (fileName.endsWith(".jpg") | fileName.endsWith(".png") | fileName.endsWith(".gif")) {
+					if (fileName.endsWith(".jpg")) {
+						serverOutput.write(res.getBytes());
+						ImageIO.write(imageInput, "jpg", serverOutput);
+					} else if (fileName.endsWith(".png")) {
+						serverOutput.write(res.getBytes());
+						ImageIO.write(imageInput, "png", serverOutput);
+					} else if (fileName.endsWith(".gif")) {
+						serverOutput.write(res.getBytes());
+						ImageIO.write(imageInput, "gif", serverOutput);
+					}
+				
+				// page requests
+				} else {
+					serverOutput.write(res.getBytes());
+				}
 				clientSocket.close();
 			} catch (IOException e) {
 				
-			}
-				
-		}
-		
+			}		
+		}	
 	}
-	
 }
