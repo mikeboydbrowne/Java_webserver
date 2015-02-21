@@ -14,6 +14,7 @@ class HttpServer {
     	requestQueue = new ServerQueue();
         server = new Server(args[0], args[1], requestQueue);
     } else {
+    	
     }
   }
   

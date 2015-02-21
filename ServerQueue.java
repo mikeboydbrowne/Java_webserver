@@ -1,18 +1,19 @@
 package edu.upenn.cis.cis455.webserver;
 
+import java.net.Socket;
 import java.util.ArrayList;
 
 public class ServerQueue {
 	
-	ArrayList<String> queue;
+	ArrayList<Socket> queue;
 	
 	// constructor => initializes the underlying ArrayList
 	public ServerQueue() {
-		this.queue = new ArrayList<String>();
+		this.queue = new ArrayList<Socket>();
 	}
 	
 	// adds an element to the back of the queue
-	public int enqueue(String s) {
+	public int enqueue(Socket s) {
 		if(queue.add(s)) {
 			return 1;
 		} else {
@@ -21,7 +22,7 @@ public class ServerQueue {
 	}
 	
 	// removes an element from the front of the queue
-	public String dequeue() {
+	public Socket dequeue() {
 		return queue.remove(0);
 	}
 	
