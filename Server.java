@@ -19,7 +19,7 @@ public class Server {
 	
 	final int 		portNumber;
 	final String	absolutePath;
-	ServerQueue 	queue;
+	ServerQueue		queue;
 	ServerSocket 	serverSocket;
 	Socket			clientSocket;
 	BufferedReader	clientInput;
@@ -86,6 +86,13 @@ public class Server {
 			String[] fileReq		= requestParams[0].split(" ");
 			String fileName			= fileReq[1];
 			String res = "";
+			
+			
+			
+			
+			
+			
+			
 			
 			// requesting a directory
 			if (fileName.endsWith("/")) {	// directory
