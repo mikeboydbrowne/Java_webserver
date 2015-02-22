@@ -18,34 +18,41 @@ import javax.imageio.ImageIO;
 
 public class ProcessingThread implements Runnable {
 
-	final String	absolutePath;
-	Server			server;
-	ServerQueue		queue;
+	final String 	absolutePath;
+	Server 			server;
+	ServerQueue 	queue;
 	ServerSocket 	serverSocket;
-	Socket			clientSocket;
-	BufferedReader	clientInput;
-	BufferedImage	imageInput;
+	Socket 			clientSocket;
+	String 			fileName;
+	BufferedReader 	clientInput;
+	BufferedImage 	imageInput;
 	OutputStream 	serverOutput;
 	Date 			currentDate;
-	Boolean			processing;
-	
-	public ProcessingThread(ServerQueue queue, String relativePath, Server server) {
-		this.server			= server;
-		this.queue			= queue;
-		this.processing		= true;
-		this.absolutePath 	= relativePath;
-		currentDate 		= new Date();
-		
+	Boolean 		processing;
+
+	public ProcessingThread(ServerQueue queue, String relativePath,
+			Server server) {
+		this.server = server;
+		this.queue = queue;
+		this.processing = true;
+		this.absolutePath = relativePath;
+		currentDate = new Date();
+
 	}
-	
+
 	public void interrupt() {
 		processing = false;
+		queue = null;
 	}
 	
-	
+	public String getURL() {
+		return fileName;
+	}
+
 	public Socket readFromQueue() {
 		while (queue.isEmpty()) {
-			//If the queue is empty, we push the current thread to waiting state. Way to avoid polling.
+			// If the queue is empty, we push the current thread to waiting
+			// state. Way to avoid polling.
 			synchronized (queue) {
 				System.out.println("Queue is currently empty ");
 				try {
@@ -56,20 +63,20 @@ public class ProcessingThread implements Runnable {
 			}
 		}
 
-		//Otherwise consume element and notify waiting producer
+		// Otherwise consume element and notify waiting producer
 		synchronized (queue) {
 			queue.notifyAll();
 			return queue.dequeue();
 		}
 	}
-	
+
 	public void run() {
 		while (processing) {
+			DateFormat formatD = new SimpleDateFormat(
+					"EEE, dd MMM yyyy HH:mm:ss zzz");
 			try {
 				clientSocket = readFromQueue();
 				String request = "";
-				DateFormat formatD = new SimpleDateFormat(
-						"EEE, dd MMM yyyy HH:mm:ss zzz");
 
 				try {
 					clientInput = new BufferedReader(new InputStreamReader(
@@ -82,7 +89,6 @@ public class ProcessingThread implements Runnable {
 					}
 
 				} catch (IOException e1) {
-					// TODO Auto-generated catch block
 					e1.printStackTrace();
 				}
 
@@ -90,18 +96,12 @@ public class ProcessingThread implements Runnable {
 				request = request.substring(2);
 				String[] requestParams = request.split("\n");
 				String[] fileReq = requestParams[0].split(" ");
-				String fileName = fileReq[1];
+				fileName = fileReq[1];
+				server.reqMap.put(this, fileName);
 				String res = "";
 
 				// requesting a directory
 				if (fileName.endsWith("/")) {
-
-					
-					if(fileName.equalsIgnoreCase("/shutdown")) {
-						server.shutdown();
-					} else if (fileName.equalsIgnoreCase("/control")) {
-						
-					}
 					
 					try {
 						File folder = new File(absolutePath + fileName);
@@ -183,42 +183,80 @@ public class ProcessingThread implements Runnable {
 
 				// requesting a file
 				} else {
-
-					fileName = absolutePath + fileName;
-					File file = new File(fileName); // opening the file
-					FileInputStream fileInput = null;
-
-					// opening up the file stream
-					try {
-						fileInput = new FileInputStream(file);
-
+					
+					// special '/shutdown' case
+					if(fileName.equalsIgnoreCase("/shutdown")) {
+						server.shutdown();
+					
+					// special '/control' case
+					} else if (fileName.equalsIgnoreCase("/control")) {
 						// creating the request
 						res = "HTTP/1.1 200 OK\r\n" + "Date: "
 								+ formatD.format(currentDate) + "\r\n"
 								+ "Content-Type: text/html; charset=UTF-8\r\n"
-								+ "Connection: close\r\n\r\n";
-						int content;
-						while ((content = fileInput.read()) != -1) {
-							res += (char) content;
+								+ "Connection: close\r\n\r\n"
+								+ " <script src=\"https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js\"></script>"
+								+ "<script>\n"
+								+ "function shutdownGet() {\n"
+								+ "  console.log(\"I sense this!\");\n"
+								+ "  $.get(\"http://localhost:" + server.portNumber + "/shutdown" + "\");\n"
+								+ "}\n"
+								+ "</script>"
+								+ "Student: Mike Browne</br>"
+								+ "Penn Login: mbrowne</br></br>"
+								+ "<button onclick=\"shutdownGet()\"> Shutdown </button></br></br>"
+								+ "##### Threads #####</br></br>";
+						
+						for (Thread t : server.threadPool) {
+							if (t.getState().toString().equalsIgnoreCase("RUNNABLE")) {
+								res += t.getName() + "   URL: " + server.reqMap.get(server.threadMap.get(t)) + "</br>";
+							} else {
+								res += t.getName() + "   State: " + t.getState() + "</br>";
+							}
 						}
-						fileInput.close(); // Closing the file stream
+					} else {
+					
+						// normal file requests
+						fileName = absolutePath + fileName;
+						File file = new File(fileName); // opening the file
+						FileInputStream fileInput = null;
 
-					} catch (FileNotFoundException e) {
-						e.printStackTrace();
+						// opening up the file stream
+						try {
+							fileInput = new FileInputStream(file);
 
-						// creating the request
-						res = "HTTP/1.1 404 Not Found\r\n" + "Date: "
-								+ formatD.format(currentDate) + "\r\n"
-								+ "Content-Type: text/html; charset=UTF-8\r\n"
-								+ "Connection: close\r\n\r\n" + "<html>\r\n"
-								+ "<head>\r\n"
-								+ "<title>404 Not Found</title>\r\n"
-								+ "</head>\r\n" + "<body>\r\n"
-								+ "<h1>Requested Page Not Found</h1>\r\n"
-								+ "</body>" + "</html>";
+							// creating the request
+							res = "HTTP/1.1 200 OK\r\n"
+									+ "Date: "
+									+ formatD.format(currentDate)
+									+ "\r\n"
+									+ "Content-Type: text/html; charset=UTF-8\r\n"
+									+ "Connection: close\r\n\r\n";
+							int content;
+							while ((content = fileInput.read()) != -1) {
+								res += (char) content;
+							}
+							fileInput.close(); // Closing the file stream
 
-					} catch (IOException e) {
-						e.printStackTrace();
+						} catch (FileNotFoundException e) {
+							e.printStackTrace();
+
+							// creating the request
+							res = "HTTP/1.1 404 Not Found\r\n"
+									+ "Date: "
+									+ formatD.format(currentDate)
+									+ "\r\n"
+									+ "Content-Type: text/html; charset=UTF-8\r\n"
+									+ "Connection: close\r\n\r\n"
+									+ "<html>\r\n" + "<head>\r\n"
+									+ "<title>404 Not Found</title>\r\n"
+									+ "</head>\r\n" + "<body>\r\n"
+									+ "<h1>Requested Page Not Found</h1>\r\n"
+									+ "</body>" + "</html>";
+
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
 					}
 				}
 
@@ -246,13 +284,13 @@ public class ProcessingThread implements Runnable {
 					}
 					clientSocket.close();
 					Thread.sleep(50);
+					server.reqMap.put(this, "Not processing a URL");
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 			} catch (InterruptedException e2) {
-				e2.printStackTrace();
+				System.out.println("Server has been shutdown");
 			}
 		}
 	}
-
 }

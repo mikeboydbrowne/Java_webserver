@@ -13,6 +13,7 @@ import java.net.Socket;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -20,18 +21,20 @@ import javax.imageio.ImageIO;
 
 public class Server {
 	
-	final int 				portNumber;
-	final String			absolutePath;
-	ServerQueue				queue;
-	Set<Thread> 			threadPool;
-	Thread					daemonThread;
-	ServerSocket 			serverSocket;
-	Socket					clientSocket;
-	BufferedReader			clientInput;
-	BufferedImage			imageInput;
-	OutputStream 			serverOutput;
-	Date 					currentDate;
-	Boolean					processing;
+	final int 							portNumber;
+	final String						absolutePath;
+	ServerQueue							queue;
+	Set<Thread> 						threadPool;
+	HashMap<Thread, ProcessingThread>	threadMap;
+	HashMap<ProcessingThread, String> 	reqMap;
+	Thread								daemonThread;
+	ServerSocket 						serverSocket;
+	Socket								clientSocket;
+	BufferedReader						clientInput;
+	BufferedImage						imageInput;
+	OutputStream 						serverOutput;
+	Date 								currentDate;
+	Boolean								processing;
 	
 	public Server(String portNum, String absolutePath, ServerQueue queue) {
 		this.portNumber		= Integer.parseInt(portNum);
@@ -46,9 +49,15 @@ public class Server {
 		// creating the threadpool
 		int numThreads = 120;
 		this.threadPool = new HashSet<Thread>();
+		this.threadMap 	= new HashMap<Thread, ProcessingThread>();
+		this.reqMap		= new HashMap<ProcessingThread, String>();
 		for (int i = 0; i < numThreads; i++) {
-			Thread reqThread = new Thread(new ProcessingThread(queue, absolutePath, this));
+			ProcessingThread procThread = new ProcessingThread(queue, absolutePath, this);
+			Thread reqThread 			= new Thread(procThread);
+			
 			threadPool.add(reqThread);
+			threadMap.put(reqThread, procThread);
+			reqMap.put(procThread, "Not processing a URL");
 		}
 		
 		// processing requests
@@ -71,9 +80,15 @@ public class Server {
 			}
 		}
 		
+		for (Thread t : threadPool) {
+			if (!t.isInterrupted()) {
+				t.interrupt();
+			}
+		}
+		
 		System.out.println("Server is shut down!");
 		
-		
+		System.exit(1);
 		
 		return 1;
 	}
