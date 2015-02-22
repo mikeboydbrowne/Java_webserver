@@ -19,6 +19,7 @@ import javax.imageio.ImageIO;
 public class ProcessingThread implements Runnable {
 
 	final String	absolutePath;
+	Server			server;
 	ServerQueue		queue;
 	ServerSocket 	serverSocket;
 	Socket			clientSocket;
@@ -26,195 +27,232 @@ public class ProcessingThread implements Runnable {
 	BufferedImage	imageInput;
 	OutputStream 	serverOutput;
 	Date 			currentDate;
-	Boolean			status;
+	Boolean			processing;
 	
-	public ProcessingThread(ServerQueue queue, String relativePath) {
+	public ProcessingThread(ServerQueue queue, String relativePath, Server server) {
+		this.server			= server;
 		this.queue			= queue;
-		this.status			= false;
+		this.processing		= true;
 		this.absolutePath 	= relativePath;
+		currentDate 		= new Date();
+		
 	}
 	
-	@Override
-	public void run() {
-		if (!queue.isEmpty()) {
-			clientSocket = queue.dequeue();
-			status = true;
-			String request = "";
-			DateFormat formatD = new SimpleDateFormat(
-					"EEE, dd MMM yyyy HH:mm:ss zzz");
-
-			try {
-				clientInput = new BufferedReader(new InputStreamReader(
-						clientSocket.getInputStream()));
-				// parsing the request
-				String reqLine = clientInput.readLine();
-				while (!reqLine.equalsIgnoreCase("")) {
-					request += "\r\n" + reqLine;
-					reqLine = clientInput.readLine();
-				}
-
-			} catch (IOException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-
-			// getting the name of the requested resource
-			request = request.substring(2);
-			String[] requestParams = request.split("\n");
-			String[] fileReq = requestParams[0].split(" ");
-			String fileName = fileReq[1];
-			String res = "";
-
-			// requesting a directory
-			if (fileName.endsWith("/")) { // directory
-
+	public void interrupt() {
+		processing = false;
+	}
+	
+	
+	public Socket readFromQueue() {
+		while (queue.isEmpty()) {
+			//If the queue is empty, we push the current thread to waiting state. Way to avoid polling.
+			synchronized (queue) {
+				System.out.println("Queue is currently empty ");
 				try {
-					File folder = new File(absolutePath + fileName);
-					File[] listOfFiles = folder.listFiles();
-
-					// creating the request
-					res = "HTTP/1.1 200 OK\r\n" + "Date: "
-							+ formatD.format(currentDate) + "\r\n"
-							+ "Content-Type: text/html; charset=UTF-8\r\n"
-							+ "Connection: close\r\n\r\n" + "<html>\r\n"
-							+ "<head>\r\n" + "<title>Hellow WWW</title>\r\n"
-							+ "</head>\r\n" + "<body>\r\n"
-							+ "<h1>List of Files & Directories</h1>\r\n";
-
-					for (int i = 0; i < listOfFiles.length; i++) {
-						if (listOfFiles[i].isFile()) {
-							res += "File: " + listOfFiles[i].getName() + "<br>";
-						} else if (listOfFiles[i].isDirectory()) {
-							res += "Directory: " + listOfFiles[i].getName()
-									+ "<br>";
-						}
-					}
-
-					res += "</body>\r\n</html>\r\n";
-
-					// in case the directory doesn't exist
-				} catch (NullPointerException n) {
-					n.printStackTrace();
-
-					res = "HTTP/1.1 404 Not Found\r\n"
-							+ "Date: "
-							+ formatD.format(currentDate)
-							+ "\r\n"
-							+ "Content-Type: text/html; charset=UTF-8\r\n"
-							+ "Connection: close\r\n\r\n"
-							+ "<html>\r\n" + "<head>\r\n"
-							+ "<title>404 Not Found</title>\r\n"
-							+ "</head>\r\n" + "<body>\r\n"
-							+ "<h1>Requested Directory Not Found</h1>\r\n"
-							+ "</body>" + "</html>";
-				}
-
-				// requesting an image
-			} else if (fileName.endsWith(".jpg") || fileName.endsWith(".gif")
-					|| fileName.endsWith(".png")) {
-
-				fileName = absolutePath + fileName;
-				File image = new File(fileName);
-				imageInput = null;
-
-				try {
-
-					imageInput = ImageIO.read(image);
-
-					// creating the request
-					res = "HTTP/1.1 200 OK\r\n" + "Date: "
-							+ formatD.format(currentDate) + "\r\n"
-							+ "Content-Type: image/jpg\r\n"
-							+ "Connection: close\r\n\r\n";
-
-				} catch (FileNotFoundException e) {
-					e.printStackTrace();
-
-					// creating the request
-					res = "HTTP/1.1 404 Not Found\r\n" + "Date: "
-							+ formatD.format(currentDate) + "\r\n"
-							+ "Content-Type: text/html; charset=UTF-8\r\n"
-							+ "Connection: close\r\n\r\n" + "<html>\r\n"
-							+ "<head>\r\n" + "<title>404 Not Found</title>\r\n"
-							+ "</head>\r\n" + "<body>\r\n"
-							+ "<h1>Requested Page Not Found</h1>\r\n"
-							+ "</body>" + "</html>";
-
-				} catch (IOException e) {
+					queue.wait();
+				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
-
-				// requesting a file
-			} else {
-
-				fileName = absolutePath + fileName;
-				File file = new File(fileName); // opening the file
-				FileInputStream fileInput = null;
-
-				// opening up the file stream
-				try {
-					fileInput = new FileInputStream(file);
-
-					// creating the request
-					res = "HTTP/1.1 200 OK\r\n" + "Date: "
-							+ formatD.format(currentDate) + "\r\n"
-							+ "Content-Type: text/html; charset=UTF-8\r\n"
-							+ "Connection: close\r\n\r\n"; 
-					int content;
-					while ((content = fileInput.read()) != -1) {
-						res += (char) content;
-					}
-					fileInput.close(); // Closing the file stream
-
-				} catch (FileNotFoundException e) {
-					e.printStackTrace();
-
-					// creating the request
-					res = "HTTP/1.1 404 Not Found\r\n"
-							+ "Date: "
-							+ formatD.format(currentDate)
-							+ "\r\n"
-							+ "Content-Type: text/html; charset=UTF-8\r\n"
-							+ "Connection: close\r\n\r\n" 
-							+ "<html>\r\n" + "<head>\r\n"
-							+ "<title>404 Not Found</title>\r\n"
-							+ "</head>\r\n" + "<body>\r\n"
-							+ "<h1>Requested Page Not Found</h1>\r\n"
-							+ "</body>" + "</html>";
-
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-
-			// responding to the request
-			try {
-				serverOutput = clientSocket.getOutputStream();
-
-				// image requests
-				if (fileName.endsWith(".jpg") | fileName.endsWith(".png") | fileName.endsWith(".gif")) {
-					if (fileName.endsWith(".jpg")) {
-						serverOutput.write(res.getBytes());
-						ImageIO.write(imageInput, "jpg", serverOutput);
-					} else if (fileName.endsWith(".png")) {
-						serverOutput.write(res.getBytes());
-						ImageIO.write(imageInput, "png", serverOutput);
-					} else if (fileName.endsWith(".gif")) {
-						serverOutput.write(res.getBytes());
-						ImageIO.write(imageInput, "gif", serverOutput);
-					}
-
-					// page requests
-				} else {
-					serverOutput.write(res.getBytes());
-				}
-				clientSocket.close();
-			} catch (IOException e) {
-				e.printStackTrace();
 			}
 		}
-	
 
+		//Otherwise consume element and notify waiting producer
+		synchronized (queue) {
+			queue.notifyAll();
+			return queue.dequeue();
+		}
+	}
+	
+	public void run() {
+		while (processing) {
+			try {
+				clientSocket = readFromQueue();
+				String request = "";
+				DateFormat formatD = new SimpleDateFormat(
+						"EEE, dd MMM yyyy HH:mm:ss zzz");
+
+				try {
+					clientInput = new BufferedReader(new InputStreamReader(
+							clientSocket.getInputStream()));
+					// parsing the request
+					String reqLine = clientInput.readLine();
+					while (!reqLine.equalsIgnoreCase("")) {
+						request += "\r\n" + reqLine;
+						reqLine = clientInput.readLine();
+					}
+
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+
+				// getting the name of the requested resource
+				request = request.substring(2);
+				String[] requestParams = request.split("\n");
+				String[] fileReq = requestParams[0].split(" ");
+				String fileName = fileReq[1];
+				String res = "";
+
+				// requesting a directory
+				if (fileName.endsWith("/")) {
+
+					
+					if(fileName.equalsIgnoreCase("/shutdown")) {
+						server.shutdown();
+					} else if (fileName.equalsIgnoreCase("/control")) {
+						
+					}
+					
+					try {
+						File folder = new File(absolutePath + fileName);
+						File[] listOfFiles = folder.listFiles();
+
+						// creating the request
+						res = "HTTP/1.1 200 OK\r\n" + "Date: "
+								+ formatD.format(currentDate) + "\r\n"
+								+ "Content-Type: text/html; charset=UTF-8\r\n"
+								+ "Connection: close\r\n\r\n" + "<html>\r\n"
+								+ "<head>\r\n"
+								+ "<title>Hellow WWW</title>\r\n"
+								+ "</head>\r\n" + "<body>\r\n"
+								+ "<h1>List of Files & Directories</h1>\r\n";
+
+						for (int i = 0; i < listOfFiles.length; i++) {
+							if (listOfFiles[i].isFile()) {
+								res += "File: " + listOfFiles[i].getName()
+										+ "<br>";
+							} else if (listOfFiles[i].isDirectory()) {
+								res += "Directory: " + listOfFiles[i].getName()
+										+ "<br>";
+							}
+						}
+
+						res += "</body>\r\n</html>\r\n";
+
+					// in case the directory doesn't exist
+					} catch (NullPointerException n) {
+						n.printStackTrace();
+
+						res = "HTTP/1.1 404 Not Found\r\n" + "Date: "
+								+ formatD.format(currentDate) + "\r\n"
+								+ "Content-Type: text/html; charset=UTF-8\r\n"
+								+ "Connection: close\r\n\r\n" + "<html>\r\n"
+								+ "<head>\r\n"
+								+ "<title>404 Not Found</title>\r\n"
+								+ "</head>\r\n" + "<body>\r\n"
+								+ "<h1>Requested Directory Not Found</h1>\r\n"
+								+ "</body>" + "</html>";
+					}
+
+				// requesting an image
+				} else if (fileName.endsWith(".jpg")
+						|| fileName.endsWith(".gif")
+						|| fileName.endsWith(".png")) {
+
+					fileName = absolutePath + fileName;
+					File image = new File(fileName);
+					imageInput = null;
+
+					try {
+
+						imageInput = ImageIO.read(image);
+
+						// creating the request
+						res = "HTTP/1.1 200 OK\r\n" + "Date: "
+								+ formatD.format(currentDate) + "\r\n"
+								+ "Content-Type: image/jpg\r\n"
+								+ "Connection: close\r\n\r\n";
+
+					} catch (FileNotFoundException e) {
+						e.printStackTrace();
+
+						// creating the request
+						res = "HTTP/1.1 404 Not Found\r\n" + "Date: "
+								+ formatD.format(currentDate) + "\r\n"
+								+ "Content-Type: text/html; charset=UTF-8\r\n"
+								+ "Connection: close\r\n\r\n" + "<html>\r\n"
+								+ "<head>\r\n"
+								+ "<title>404 Not Found</title>\r\n"
+								+ "</head>\r\n" + "<body>\r\n"
+								+ "<h1>Requested Page Not Found</h1>\r\n"
+								+ "</body>" + "</html>";
+
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+
+				// requesting a file
+				} else {
+
+					fileName = absolutePath + fileName;
+					File file = new File(fileName); // opening the file
+					FileInputStream fileInput = null;
+
+					// opening up the file stream
+					try {
+						fileInput = new FileInputStream(file);
+
+						// creating the request
+						res = "HTTP/1.1 200 OK\r\n" + "Date: "
+								+ formatD.format(currentDate) + "\r\n"
+								+ "Content-Type: text/html; charset=UTF-8\r\n"
+								+ "Connection: close\r\n\r\n";
+						int content;
+						while ((content = fileInput.read()) != -1) {
+							res += (char) content;
+						}
+						fileInput.close(); // Closing the file stream
+
+					} catch (FileNotFoundException e) {
+						e.printStackTrace();
+
+						// creating the request
+						res = "HTTP/1.1 404 Not Found\r\n" + "Date: "
+								+ formatD.format(currentDate) + "\r\n"
+								+ "Content-Type: text/html; charset=UTF-8\r\n"
+								+ "Connection: close\r\n\r\n" + "<html>\r\n"
+								+ "<head>\r\n"
+								+ "<title>404 Not Found</title>\r\n"
+								+ "</head>\r\n" + "<body>\r\n"
+								+ "<h1>Requested Page Not Found</h1>\r\n"
+								+ "</body>" + "</html>";
+
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+
+				// responding to the request
+				try {
+					serverOutput = clientSocket.getOutputStream();
+
+					// image requests
+					if (fileName.endsWith(".jpg") | fileName.endsWith(".png")
+							| fileName.endsWith(".gif")) {
+						if (fileName.endsWith(".jpg")) {
+							serverOutput.write(res.getBytes());
+							ImageIO.write(imageInput, "jpg", serverOutput);
+						} else if (fileName.endsWith(".png")) {
+							serverOutput.write(res.getBytes());
+							ImageIO.write(imageInput, "png", serverOutput);
+						} else if (fileName.endsWith(".gif")) {
+							serverOutput.write(res.getBytes());
+							ImageIO.write(imageInput, "gif", serverOutput);
+						}
+
+						// page requests
+					} else {
+						serverOutput.write(res.getBytes());
+					}
+					clientSocket.close();
+					Thread.sleep(50);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			} catch (InterruptedException e2) {
+				e2.printStackTrace();
+			}
+		}
 	}
 
 }

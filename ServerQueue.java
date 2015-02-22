@@ -30,4 +30,9 @@ public class ServerQueue {
 	public boolean isEmpty() {
 		return queue.isEmpty();
 	}
+	
+	public int size() {
+		return queue.size();
+	}
+	
 }

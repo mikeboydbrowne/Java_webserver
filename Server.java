@@ -23,8 +23,8 @@ public class Server {
 	final int 				portNumber;
 	final String			absolutePath;
 	ServerQueue				queue;
-	Set<ProcessingThread> 	threadPool;
-	RequestThread			daemonThread;
+	Set<Thread> 			threadPool;
+	Thread					daemonThread;
 	ServerSocket 			serverSocket;
 	Socket					clientSocket;
 	BufferedReader			clientInput;
@@ -40,18 +40,16 @@ public class Server {
 		this.currentDate	= new Date();
 		this.processing		= true;
 		
-		// creating the threadpool
-		int numThreads = 100;
-		
-		this.threadPool = new HashSet<ProcessingThread>();
-		for (int i = 0; i < numThreads; i++) {
-			threadPool.add(new ProcessingThread(queue, absolutePath));
-			
-		}
-		
 		// creating the daemon thread
-		daemonThread = new RequestThread(queue, portNumber);
-		daemonThread.run();
+		daemonThread = new Thread(new RequestThread(queue, portNumber, this));
+		
+		// creating the threadpool
+		int numThreads = 120;
+		this.threadPool = new HashSet<Thread>();
+		for (int i = 0; i < numThreads; i++) {
+			Thread reqThread = new Thread(new ProcessingThread(queue, absolutePath, this));
+			threadPool.add(reqThread);
+		}
 		
 		// processing requests
 		processRequests();
@@ -59,45 +57,39 @@ public class Server {
 	
 	public int shutdown() {
 		
-		this.processing = false;
-		
-		// close the server socket socket
-		try {
-			serverSocket.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
 		// stopping the daemon thread
-		daemonThread.stop();
+		daemonThread.interrupt();
+		
+		while (!queue.isEmpty()) {
+			System.out.println("Queue hasn't been emptied");
+		}
 		
 		// processing the remaining requests
-		while (!queue.isEmpty()) {
-			for (ProcessingThread s : threadPool) {
-				s.run();
+		if (queue.isEmpty()) {
+			for (Thread s : threadPool) {
+				s.interrupt();
 			}
 		}
+		
+		System.out.println("Server is shut down!");
+		
+		
 		
 		return 1;
 	}
 	
 	public int processRequests() {
-		try {
-			this.serverSocket 	= new ServerSocket(portNumber);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 		
-		while (processing) {	
-			// running all the threads in the threadPool to process all the requests
-			while (!queue.isEmpty()) {
-				for (ProcessingThread s : threadPool) {
-					s.run();
-				}
-			}
+			
+		// starting up the daemon thread
+		daemonThread.start();
+
+		// starting the threads in the threadPool
+		for (Thread s : threadPool) {
+			s.start();
 		}
 		
 		return 1;
-
+		
 	}
 }
