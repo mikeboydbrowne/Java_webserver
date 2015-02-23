@@ -9,6 +9,10 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 
 public class HResponse implements HttpServletResponse {
+	
+	String 		contentType;
+	String 		characterEncoding;
+	
 
 	@Override
 	public void flushBuffer() throws IOException {
@@ -24,14 +28,16 @@ public class HResponse implements HttpServletResponse {
 
 	@Override
 	public String getCharacterEncoding() {
-		// TODO Auto-generated method stub
-		return null;
+		return "ISO-8859-1";
 	}
 
 	@Override
 	public String getContentType() {
-		// TODO Auto-generated method stub
-		return null;
+		if (contentType == null) {
+			return "text/html";
+		} else {
+			return contentType;
+		}
 	}
 
 	@Override
@@ -42,7 +48,6 @@ public class HResponse implements HttpServletResponse {
 
 	@Override
 	public ServletOutputStream getOutputStream() throws IOException {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -78,8 +83,6 @@ public class HResponse implements HttpServletResponse {
 
 	@Override
 	public void setCharacterEncoding(String arg0) {
-		// TODO Auto-generated method stub
-
 	}
 
 	@Override

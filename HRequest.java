@@ -15,6 +15,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
 public class HRequest implements HttpServletRequest {
+	
+	String 		characterEncoding;
+	boolean 	characterEncodingRun;
+	String 		contentType;
 
 	@Override
 	public Object getAttribute(String arg0) {
@@ -30,8 +34,11 @@ public class HRequest implements HttpServletRequest {
 
 	@Override
 	public String getCharacterEncoding() {
-		// TODO Auto-generated method stub
-		return null;
+		if (characterEncodingRun) {
+			return characterEncoding;
+		} else {
+			return "ISO-8859-1";
+		}
 	}
 
 	@Override
@@ -42,13 +49,11 @@ public class HRequest implements HttpServletRequest {
 
 	@Override
 	public String getContentType() {
-		// TODO Auto-generated method stub
-		return null;
+		return "text/html";
 	}
 
 	@Override
 	public ServletInputStream getInputStream() throws IOException {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -73,12 +78,12 @@ public class HRequest implements HttpServletRequest {
 	@Override
 	public Locale getLocale() {
 		// TODO Auto-generated method stub
+		// Check to see if previously set, if not return null
 		return null;
 	}
 
 	@Override
 	public Enumeration getLocales() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -144,14 +149,12 @@ public class HRequest implements HttpServletRequest {
 
 	@Override
 	public RequestDispatcher getRequestDispatcher(String arg0) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public String getScheme() {
-		// TODO Auto-generated method stub
-		return null;
+		return "http";
 	}
 
 	@Override
@@ -187,14 +190,12 @@ public class HRequest implements HttpServletRequest {
 	@Override
 	public void setCharacterEncoding(String arg0)
 			throws UnsupportedEncodingException {
-		// TODO Auto-generated method stub
-
+		characterEncodingRun = true;
 	}
 
 	@Override
 	public String getAuthType() {
-		// TODO Auto-generated method stub
-		return null;
+		return "BASIC";
 	}
 
 	@Override
@@ -253,7 +254,6 @@ public class HRequest implements HttpServletRequest {
 
 	@Override
 	public String getPathTranslated() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -307,7 +307,6 @@ public class HRequest implements HttpServletRequest {
 
 	@Override
 	public Principal getUserPrincipal() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -319,7 +318,6 @@ public class HRequest implements HttpServletRequest {
 
 	@Override
 	public boolean isRequestedSessionIdFromURL() {
-		// TODO Auto-generated method stub
 		return false;
 	}
 
@@ -337,7 +335,6 @@ public class HRequest implements HttpServletRequest {
 
 	@Override
 	public boolean isUserInRole(String arg0) {
-		// TODO Auto-generated method stub
 		return false;
 	}
 
