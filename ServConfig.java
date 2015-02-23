@@ -1,34 +1,46 @@
 package edu.upenn.cis.cis455.webserver;
 
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.Vector;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 
 public class ServConfig implements ServletConfig {
 
-	@Override
+	private String 					name;
+	private ServContext 			context;
+	private HashMap<String,String> 	initParams;
+	
+	public ServConfig(String name, ServContext context) {
+		this.name = name;
+		this.context = context;
+		initParams = new HashMap<String,String>();
+	}
+	
 	public String getInitParameter(String arg0) {
-		// TODO Auto-generated method stub
-		return null;
+		return initParams.get(arg0);
 	}
 
-	@Override
+	@SuppressWarnings("rawtypes")
 	public Enumeration getInitParameterNames() {
-		// TODO Auto-generated method stub
-		return null;
+		Set<String> keys = initParams.keySet();
+		Vector<String> atts = new Vector<String>(keys);
+		return atts.elements();
 	}
 
-	@Override
 	public ServletContext getServletContext() {
-		// TODO Auto-generated method stub
-		return null;
+		return context;
 	}
 
-	@Override
 	public String getServletName() {
-		// TODO Auto-generated method stub
-		return null;
+		return name;
+	}
+	
+	void setInitParam(String name, String value) {
+		initParams.put(name, value);
 	}
 
 }
