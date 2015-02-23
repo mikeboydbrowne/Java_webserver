@@ -51,7 +51,6 @@ public class ServContext implements ServletContext {
 
 	@Override
 	public String getMimeType(String arg0) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -63,7 +62,6 @@ public class ServContext implements ServletContext {
 
 	@Override
 	public RequestDispatcher getNamedDispatcher(String arg0) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -75,25 +73,21 @@ public class ServContext implements ServletContext {
 
 	@Override
 	public RequestDispatcher getRequestDispatcher(String arg0) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public URL getResource(String arg0) throws MalformedURLException {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public InputStream getResourceAsStream(String arg0) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public Set getResourcePaths(String arg0) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -105,7 +99,6 @@ public class ServContext implements ServletContext {
 
 	@Override
 	public Servlet getServlet(String arg0) throws ServletException {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -117,20 +110,16 @@ public class ServContext implements ServletContext {
 
 	@Override
 	public Enumeration getServletNames() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public Enumeration getServlets() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public void log(String arg0) {
-		// TODO Auto-generated method stub
-
 	}
 
 	@Override
