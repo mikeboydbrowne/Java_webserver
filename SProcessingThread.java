@@ -117,7 +117,7 @@ public class SProcessingThread implements Runnable {
 		
 		HSession servSession = null;
 		
-		HRequest servReq = new HRequest(clientSocket, reader, reqText, server, servSession);
+		HRequest servReq = new HRequest(clientSocket, reader, reqText, urlMatch, server, servSession);
 		
 		return 1;
 	}

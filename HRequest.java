@@ -17,7 +17,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
 
@@ -61,6 +60,8 @@ public class HRequest implements HttpServletRequest {
 		this.session		= session;
 		this.queryString	= "";
 		processRequest();	// processing the request string
+		System.out.println(getHeader("User-Agent"));
+		System.out.println(getParameterNames());
 	}
 	
 	private boolean processRequest() {
@@ -73,7 +74,7 @@ public class HRequest implements HttpServletRequest {
 		for (String s : request.split("\r\n")) {
 			
 			// getting header values
-			if (s.contains("(^\\p{ASCII})*: (^\\p{ASCII})*") ) {
+			if (s.contains(": ") ) {
 				if (s.contains("Content-Length: "))
 					contentLength = true;
 				headerList.add(s);
@@ -92,16 +93,16 @@ public class HRequest implements HttpServletRequest {
 		
 		// initializing parameters
 		if (requestMethod.equalsIgnoreCase("GET")) {
-			if (requestedPath.split("?").length > 1) {					// checking to see if parameters passed
-				String paramVals 	= requestedPath.split("?")[1];		// splitting off at '?' mark
+			if (requestedPath.split("\\?").length > 1) {					// checking to see if parameters passed
+				String paramVals 	= requestedPath.split("\\?")[1];		// splitting off at '?' mark
 				queryString 		= paramVals;
 				for (String p : paramVals.split("&")) {					// getting each param tuple via '&'
 					parameters.put(p.split("=")[0], p.split("=")[1]);	// splitting each tuple around '='
 				}
 			}
 		} else if (requestMethod.equalsIgnoreCase("HEAD")) {
-			if (requestedPath.split("?").length > 1) {					// checking to see if parameters passed
-				String paramVals 	= requestedPath.split("?")[1];		// splitting off at '?' mark
+			if (requestedPath.split("\\?").length > 1) {					// checking to see if parameters passed
+				String paramVals 	= requestedPath.split("\\?")[1];		// splitting off at '?' mark
 				queryString 		= paramVals;
 				for (String p : paramVals.split("&")) {					// getting each param tuple via '&'
 					parameters.put(p.split("=")[0], p.split("=")[1]);	// splitting each tuple around '='
