@@ -1,7 +1,15 @@
 package edu.upenn.cis.cis455.webserver;
 
+import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.OutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.servlet.http.HttpServlet;
 import javax.xml.parsers.SAXParser;
@@ -12,12 +20,50 @@ public class ServletEngine {
 	int 	port;
 	String 	absolutePath;
 	String 	webxmlPath;
+
+	ServerQueue							queue;
+	Set<Thread> 						threadPool;
+	HashMap<Thread, SProcessingThread>	threadMap;
+	HashMap<SProcessingThread, String> 	reqMap;
+	HashMap<String, HSession>			sessionMap;
+	HashMap<String, String>				urlMap;
+	Thread								daemonThread;
+	ServerSocket 						serverSocket;
+	Socket								clientSocket;
+	BufferedReader						clientInput;
+	BufferedImage						imageInput;
+	OutputStream 						serverOutput;
+	Date 								currentDate;
+	Boolean								processing;
 	
-	public ServletEngine(String portNum, String absolutePath, String webxmlPath) {
+	public ServletEngine(String portNum, String absolutePath, String webxmlPath, ServerQueue queue) {
 		port 				= Integer.parseInt(portNum);	// setting port to listen on
 		this.absolutePath 	= absolutePath;					// setting absolute path for requests
 		this.webxmlPath 	= webxmlPath;					// setting path to web.xml	
-		run();												// running the engine
+		this.queue			= queue;
+		this.currentDate 	= new Date();
+
+		// creating the daemon thread
+		daemonThread = new Thread(new SRequestThread(queue, port, this));
+
+		// creating the threadpool
+		int numThreads = 1;
+		this.threadPool	= new HashSet<Thread>();
+		this.threadMap	= new HashMap<Thread, SProcessingThread>();
+		this.reqMap 	= new HashMap<SProcessingThread, String>();
+		for (int i = 0; i < numThreads; i++) {
+			// creating each thread
+			SProcessingThread sProcThread 	= new SProcessingThread(queue, absolutePath, this);
+			Thread reqThread 				= new Thread(sProcThread);
+
+			threadPool.add(reqThread);
+			threadMap.put(reqThread, sProcThread);
+			reqMap.put(sProcThread, "Not processing a URL");
+		}
+		
+		// running the engine
+		run();
+		
 	}
 	
 	private int run() {
@@ -26,13 +72,26 @@ public class ServletEngine {
 			ServContext servContext	= createContext(servHandler);	// initializing the servlet's context
 			
 			HashMap<String,HttpServlet> servlets = createServlets(servHandler, servContext);
+			
+			// starting the daemon thread
+			daemonThread.start();
+
+			// starting the threads in the threadPool
+			for (Thread s : threadPool) {
+				s.start();
+			}
+			
+			return 1;				// returns 1 on sucessful completion
 		
 		} catch (Exception e) {
 			e.printStackTrace();
 			return -1;				// returns -1 on error
 		}
-		
-		return 1;					// returns 1 on sucessful completion
+	}
+	
+	public int shutdown() {
+		System.out.println("Tried to shutdown the server");
+		return 1;
 	}
 	
 	/**
@@ -87,6 +146,9 @@ public class ServletEngine {
 	
 	private HashMap<String,HttpServlet> createServlets(SHandler h, ServContext sc) throws Exception {
 		HashMap<String,HttpServlet> servlets = new HashMap<String,HttpServlet>();
+		
+		urlMap = h.m_urls;	// creating special url -> servlet mapping
+		// creating the servlets
 		for (String servletName : h.m_servlets.keySet()) {
 			ServConfig config = new ServConfig(servletName, sc);
 			String className = h.m_servlets.get(servletName);

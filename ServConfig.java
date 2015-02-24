@@ -10,7 +10,7 @@ import javax.servlet.ServletContext;
 
 public class ServConfig implements ServletConfig {
 
-	private String 					name;
+	private String					name;
 	private ServContext 			context;
 	private HashMap<String,String> 	initParams;
 	

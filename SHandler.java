@@ -11,6 +11,7 @@ public class SHandler extends DefaultHandler {
 	private String 							m_servletName;
 	private String 							m_paramName;
 	HashMap<String,String> 					m_servlets 			= new HashMap<String,String>();
+	HashMap<String,String>					m_urls				= new HashMap<String,String>();
 	HashMap<String,String> 					m_contextParams 	= new HashMap<String,String>();
 	HashMap<String,HashMap<String,String>>	m_servletParams 	= new HashMap<String,HashMap<String,String>>();
 	
@@ -27,6 +28,8 @@ public class SHandler extends DefaultHandler {
 			m_state = (m_state == 3) ? 10 : 20;
 		} else if (qName.compareTo("param-value") == 0) {
 			m_state = (m_state == 10) ? 11 : 21;
+		} else if (qName.compareTo("url-pattern") == 0) {
+			m_state = 5;
 		}
 	}
 	
@@ -59,6 +62,14 @@ public class SHandler extends DefaultHandler {
 				m_servletParams.put(m_servletName, p);
 			}
 			p.put(m_paramName, value);
+			m_paramName = null;
+			m_state = 0;
+		} else if (m_state == 5) {
+			
+			// ignoring default case
+			if (!m_servletName.equalsIgnoreCase("default")) {
+				m_urls.put(value, m_servletName);
+			}
 			m_paramName = null;
 			m_state = 0;
 		}
