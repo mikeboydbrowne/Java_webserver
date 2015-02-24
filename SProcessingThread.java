@@ -24,6 +24,7 @@ public class SProcessingThread implements Runnable {
 	ServerSocket 	serverSocket;
 	Socket 			clientSocket;
 	String 			fileName;
+	String			urlMatch;
 	String[]		cookieInfo;
 	BufferedReader 	clientInput;
 	BufferedImage 	imageInput;
@@ -88,7 +89,7 @@ public class SProcessingThread implements Runnable {
 			
 			// checking to see if request matches special servlet URL
 			for (String s : server.urlMap.keySet()) {
-				String urlMatch = "";
+				urlMatch = "";
 				
 				// modifying s to match with fileName
 				if (s.endsWith("/*")) {
@@ -105,14 +106,19 @@ public class SProcessingThread implements Runnable {
 			
 			// run the correct type of request
 			if (servletReq) {
-				runServletRequest();
+				runServletRequest(request, clientInput);
 			} else {
 				runServerRequest();
 			}
 		}
 	}
 		
-	public int runServletRequest() {
+	public int runServletRequest(String reqText, BufferedReader reader) {
+		
+		HSession servSession = null;
+		
+		HRequest servReq = new HRequest(clientSocket, reader, reqText, server, servSession);
+		
 		return 1;
 	}
 
