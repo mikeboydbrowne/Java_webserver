@@ -25,7 +25,9 @@ public class ServletEngine {
 	Set<Thread> 						threadPool;
 	HashMap<Thread, SProcessingThread>	threadMap;
 	HashMap<SProcessingThread, String> 	reqMap;
-	HashMap<String, HSession>			sessionMap;
+	HashMap<String, HttpServlet>		sessionMap;
+	HashMap<String, HSession>			sessionName;
+	HashMap<String, HttpServlet> 		servlets;
 	HashMap<String, String>				urlMap;
 	Thread								daemonThread;
 	ServerSocket 						serverSocket;
@@ -35,6 +37,7 @@ public class ServletEngine {
 	OutputStream 						serverOutput;
 	Date 								currentDate;
 	Boolean								processing;
+	int									sessionCounter;
 	
 	public ServletEngine(String portNum, String absolutePath, String webxmlPath, ServerQueue queue) {
 		port 				= Integer.parseInt(portNum);	// setting port to listen on
@@ -42,12 +45,12 @@ public class ServletEngine {
 		this.webxmlPath 	= webxmlPath;					// setting path to web.xml	
 		this.queue			= queue;
 		this.currentDate 	= new Date();
-
+		this.sessionCounter	= 0;
+		this.sessionMap		= new HashMap<String, HttpServlet>();
 		// creating the daemon thread
 		daemonThread = new Thread(new SRequestThread(queue, port, this));
-
 		// creating the threadpool
-		int numThreads = 1;
+		int numThreads = 100;
 		this.threadPool	= new HashSet<Thread>();
 		this.threadMap	= new HashMap<Thread, SProcessingThread>();
 		this.reqMap 	= new HashMap<SProcessingThread, String>();
@@ -60,29 +63,24 @@ public class ServletEngine {
 			threadMap.put(reqThread, sProcThread);
 			reqMap.put(sProcThread, "Not processing a URL");
 		}
-		
 		// running the engine
 		run();
-		
 	}
 	
 	private int run() {
 		try {
+			// parse the web.xml file and create the servlet's context
 			SHandler 	servHandler	= parseWebdotxml(webxmlPath);	// creating the handler for the servlet
 			ServContext servContext	= createContext(servHandler);	// initializing the servlet's context
-			
-			HashMap<String,HttpServlet> servlets = createServlets(servHandler, servContext);
-			
+			// create the servlet
+			servlets = createServlets(servHandler, servContext);
 			// starting the daemon thread
 			daemonThread.start();
-
 			// starting the threads in the threadPool
 			for (Thread s : threadPool) {
 				s.start();
 			}
-			
 			return 1;				// returns 1 on sucessful completion
-		
 		} catch (Exception e) {
 			e.printStackTrace();
 			return -1;				// returns -1 on error
@@ -90,7 +88,36 @@ public class ServletEngine {
 	}
 	
 	public int shutdown() {
-		System.out.println("Tried to shutdown the server");
+		// stopping the daemon thread
+		daemonThread.interrupt();
+
+		while (!queue.isEmpty()) {
+			System.out.println("Queue hasn't been emptied");
+		}
+
+		// processing the remaining requests
+		if (queue.isEmpty()) {
+			for (Thread s : threadPool) {
+				s.interrupt();
+			}
+		}
+
+		// stopping the threadpool
+		for (Thread t : threadPool) {
+			if (!t.isInterrupted()) {
+				t.interrupt();
+			}
+		}
+		
+		// destryoing all the servlets
+		for (String s : servlets.keySet()) {
+			servlets.get(s).destroy();
+		}
+
+		System.out.println("Server is shut down!");
+
+		System.exit(1);
+
 		return 1;
 	}
 	
@@ -105,7 +132,6 @@ public class ServletEngine {
 	
 	private SHandler parseWebdotxml(String webdotxml) throws Exception {
 		SHandler h = new SHandler();
-		
 		File file = new File(webdotxml);
 		if (file.exists() == false) {
 			System.err.println("error: cannot find " + file.getPath());
@@ -113,7 +139,6 @@ public class ServletEngine {
 		}
 		SAXParser parser = SAXParserFactory.newInstance().newSAXParser();
 		parser.parse(file, h);
-		
 		return h;
 	}
 	
@@ -125,7 +150,7 @@ public class ServletEngine {
 	 */
 	
 	private ServContext createContext(SHandler h) {
-		ServContext fc = new ServContext();
+		ServContext fc = new ServContext(h.contextName);
 		for (String param : h.m_contextParams.keySet()) {
 			fc.setInitParam(param, h.m_contextParams.get(param));
 		}
@@ -146,12 +171,12 @@ public class ServletEngine {
 	
 	private HashMap<String,HttpServlet> createServlets(SHandler h, ServContext sc) throws Exception {
 		HashMap<String,HttpServlet> servlets = new HashMap<String,HttpServlet>();
-		
 		urlMap = h.m_urls;	// creating special url -> servlet mapping
 		// creating the servlets
 		for (String servletName : h.m_servlets.keySet()) {
 			ServConfig config = new ServConfig(servletName, sc);
 			String className = h.m_servlets.get(servletName);
+			@SuppressWarnings("rawtypes")
 			Class servletClass = Class.forName(className);
 			HttpServlet servlet = (HttpServlet) servletClass.newInstance();
 			HashMap<String,String> servletParams = h.m_servletParams.get(servletName);

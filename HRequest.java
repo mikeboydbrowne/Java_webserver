@@ -23,6 +23,7 @@ import java.util.Vector;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletInputStream;
 import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
@@ -36,12 +37,12 @@ public class HRequest implements HttpServletRequest {
 	boolean		localeSet;
 	
 	// variables for dynamic methods (not set according to spec)
-	HashMap<String, Object> attributes 		= new HashMap<String, Object>();
 	HashMap<String, String> parameters		= new HashMap<String, String>();
 	HashMap<String, String> headers			= new HashMap<String, String>();
+	HashMap<String, String>	cookieVals		= new HashMap<String, String>();
 	BufferedReader			requestReader;
 	ServletEngine 			server;
-	HSession				session;
+	HttpServlet				servlet;
 	Socket					requestSocket;
 	String					queryString;
 	String					requestedPath;
@@ -51,44 +52,47 @@ public class HRequest implements HttpServletRequest {
 	String					servletAddr;
 	
 	public HRequest (Socket clientSocket, BufferedReader req, String request, 
-					String servletAddr, ServletEngine server, HSession session) {
+					String servletAddr, ServletEngine server, HttpServlet servlet) {
 		this.requestSocket	= clientSocket;
 		this.requestReader	= req;
 		this.server 		= server;
+		this.servlet		= servlet;
 		this.request 		= request;
 		this.servletAddr	= servletAddr;
-		this.session		= session;
 		this.queryString	= "";
 		processRequest();	// processing the request string
-		System.out.println(getHeader("User-Agent"));
-		System.out.println(getParameterNames());
 	}
 	
 	private boolean processRequest() {
-		requestMethod 					= request.split("\r\n")[1].split(" ")[0];
-		requestedPath					= request.split("\r\n")[1].split(" ")[1];
+		requestMethod 					= request.split("\r\n")[0].split(" ")[0];
+		requestedPath					= request.split("\r\n")[0].split(" ")[1];
 		ArrayList<String> headerList 	= new ArrayList<String>();
 		boolean contentLength			= false;
-		
 		// initializing headers
 		for (String s : request.split("\r\n")) {
-			
 			// getting header values
 			if (s.contains(": ") ) {
 				if (s.contains("Content-Length: "))
 					contentLength = true;
 				headerList.add(s);
 			}
-			
 			// getting post request information
 			if (contentLength) {
 				requestParams = s;
 				contentLength = false;
 			}
 		}
+		
+		// separating between header info and cookie info
 		for (String t : headerList) {
 			String[] headerArr = t.split(": ");
-			headers.put(headerArr[0], headerArr[1]);
+			if (headerArr[0].equalsIgnoreCase("Cookie")) {
+				for (String s : headerArr[1].split(";")) {
+					cookieVals.put(s.split("=")[0], s.split("=")[1]);
+				}
+			} else {
+				headers.put(headerArr[0], headerArr[1]);
+			}
 		}
 		
 		// initializing parameters
@@ -119,13 +123,12 @@ public class HRequest implements HttpServletRequest {
 
 	
 	public Object getAttribute(String arg0) {
-		// TODO Auto-generated method stub
-		return null;
+		return servlet.getServletContext().getAttribute(arg0);
 	}
 
+	@SuppressWarnings("rawtypes")
 	public Enumeration getAttributeNames() {
-		// TODO Auto-generated method stub
-		return null;
+		return servlet.getServletContext().getAttributeNames();
 	}
 
 	public String getCharacterEncoding() {
@@ -174,6 +177,7 @@ public class HRequest implements HttpServletRequest {
 		}
 	}
 
+	@SuppressWarnings("rawtypes")
 	public Enumeration getLocales() {
 		return null;
 	}
@@ -182,10 +186,12 @@ public class HRequest implements HttpServletRequest {
 		return parameters.get(arg0);
 	}
 
+	@SuppressWarnings("rawtypes")
 	public Map getParameterMap() {
 		return parameters;
 	}
 
+	@SuppressWarnings("rawtypes")
 	public Enumeration getParameterNames() {
 		Set<String> keys = parameters.keySet();
 		Vector<String> atts = new Vector<String>(keys);
@@ -238,7 +244,7 @@ public class HRequest implements HttpServletRequest {
 	}
 
 	public String getScheme() {
-		return "http";
+		return "HTTP";
 	}
 
 	public String getServerName() {
@@ -254,12 +260,12 @@ public class HRequest implements HttpServletRequest {
 	}
 
 	public void removeAttribute(String arg0) {
-		attributes.remove(arg0);
+		servlet.getServletContext().removeAttribute(arg0);
 
 	}
 
 	public void setAttribute(String arg0, Object arg1) {
-		attributes.put(arg0, (String) arg1);
+		servlet.getServletContext().setAttribute(arg0, arg1);
 
 	}
 
@@ -298,12 +304,14 @@ public class HRequest implements HttpServletRequest {
 		return headers.get(arg0);
 	}
 
+	@SuppressWarnings("rawtypes")
 	public Enumeration getHeaderNames() {
 		Set<String> keys = headers.keySet();
 		Vector<String> atts = new Vector<String>(keys);
 		return atts.elements();
 	}
 
+	@SuppressWarnings("rawtypes")
 	public Enumeration getHeaders(String arg0) {
 		String headerVals = headers.get(arg0);
 		Set<String> keys = new HashSet<String>();
@@ -340,7 +348,11 @@ public class HRequest implements HttpServletRequest {
 	}
 
 	public String getRequestURI() {
-		return requestedPath.split("?")[0];
+		if (queryString.equalsIgnoreCase("")) {
+			return requestedPath;
+		} else {
+			return requestedPath.split("?")[0];
+		}
 	}
 
 	public StringBuffer getRequestURL() {
@@ -348,8 +360,7 @@ public class HRequest implements HttpServletRequest {
 	}
 
 	public String getRequestedSessionId() {
-		// TODO Auto-generated method stub
-		return null;
+		return cookieVals.get("JSessionID");
 	}
 
 	public String getServletPath() {
@@ -357,22 +368,21 @@ public class HRequest implements HttpServletRequest {
 	}
 
 	public HttpSession getSession() {
-		if (session == null) {
-			session = new HSession();
-			return session;
+		if (server.sessionMap.containsKey(cookieVals.get("JSessionID"))) {
+			return server.sessionName.get(cookieVals.get("JSessionID"));
 		} else {
-			return session;
+			return new HSession(server, (ServContext) servlet.getServletContext(), "JSessionID=" + server.sessionCounter);
 		}
 			
 	}
 
 	public HttpSession getSession(boolean arg0) {
-		if (session == null && arg0) {
-			session = new HSession();
-			return session;
-		} else {
-			return session;
+		if (server.sessionMap.containsKey(cookieVals.get("JSessionID"))) {
+			return server.sessionName.get(cookieVals.get("JSessionID"));
+		} else if (arg0) {
+			return new HSession(server, (ServContext) servlet.getServletContext(), "JSessionID=" + server.sessionCounter);
 		}
+		return null;
 	}
 
 	public Principal getUserPrincipal() {
@@ -380,8 +390,7 @@ public class HRequest implements HttpServletRequest {
 	}
 
 	public boolean isRequestedSessionIdFromCookie() {
-		// TODO Auto-generated method stub
-		return false;
+		return cookieVals.containsKey("JSessionID");
 	}
 
 	public boolean isRequestedSessionIdFromURL() {
@@ -393,8 +402,7 @@ public class HRequest implements HttpServletRequest {
 	}
 
 	public boolean isRequestedSessionIdValid() {
-		// TODO Auto-generated method stub
-		return false;
+		return server.sessionMap.containsKey(cookieVals.get("JSessionID"));
 	}
 
 	public boolean isUserInRole(String arg0) {

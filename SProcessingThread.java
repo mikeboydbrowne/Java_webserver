@@ -15,6 +15,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import javax.imageio.ImageIO;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
 
 public class SProcessingThread implements Runnable {
 
@@ -25,6 +27,7 @@ public class SProcessingThread implements Runnable {
 	Socket 			clientSocket;
 	String 			fileName;
 	String			urlMatch;
+	String			urlOrig;
 	String[]		cookieInfo;
 	BufferedReader 	clientInput;
 	BufferedImage 	imageInput;
@@ -72,9 +75,15 @@ public class SProcessingThread implements Runnable {
 				
 				// getting input stream from socket
 				clientInput 		= new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-				String		reqLine = clientInput.readLine();
+				String reqLine = clientInput.readLine();
+				boolean firstLine = true;
 				while (!reqLine.equalsIgnoreCase("")) {
-					request += "\r\n" + reqLine;
+					if (firstLine) {
+						request += reqLine;
+						firstLine = false;
+					} else {
+						request += "\r\n" + reqLine;
+					}
 					reqLine = clientInput.readLine();
 				}
 			} catch (IOException e1) {
@@ -83,7 +92,7 @@ public class SProcessingThread implements Runnable {
 			
 			// parsing request
 			String[]	requestParams 	= request.split("\n");
-			String[]	fileReq 		= requestParams[1].split(" ");
+			String[]	fileReq 		= requestParams[0].split(" ");
 			boolean servletReq			= false;			
 			fileName 					= fileReq[1];
 			
@@ -93,31 +102,59 @@ public class SProcessingThread implements Runnable {
 				
 				// modifying s to match with fileName
 				if (s.endsWith("/*")) {
-					urlMatch = s.substring(0, s.length() - 2);
+					urlMatch 	= s.substring(0, s.length() - 2);
+					urlOrig 	= s;
 				} else if (s.endsWith("*"))  {
-					urlMatch = s.substring(0, s.length() - 1);
+					urlMatch 	= s.substring(0, s.length() - 1);
+					urlOrig 	= s;
 				}
 				
 				// matching with urls
-				if (fileName.startsWith(urlMatch) || fileName.startsWith(urlMatch + "/")) {
+				if (fileName.startsWith(urlMatch) || fileName.startsWith("/" + urlMatch) || fileName.startsWith(urlMatch + "/")) {
 					servletReq = true;
 				}
 			}
 			
 			// run the correct type of request
 			if (servletReq) {
-				runServletRequest(request, clientInput);
+				try {
+					runServletRequest(request, clientInput);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			} else {
 				runServerRequest();
 			}
 		}
 	}
 		
-	public int runServletRequest(String reqText, BufferedReader reader) {
+	@SuppressWarnings("null")
+	public int runServletRequest(String reqText, BufferedReader reader) throws IOException {
 		
-		HSession servSession = null;
+		// get the servlet to be run
+		HttpServlet currServlet = server.servlets.get(server.urlMap.get(urlOrig));
 		
-		HRequest servReq = new HRequest(clientSocket, reader, reqText, urlMatch, server, servSession);
+		// creating the http request
+		HRequest servReq = new HRequest(clientSocket, reader, reqText, urlMatch, server, currServlet);
+		
+//		// checking to see if the session is new or associated with the currentServlet
+//		if (!server.sessionMap.containsKey(servSession.id)) {
+//			server.sessionMap.put(servSession.id, currServlet); // new session
+//		} else if (server.sessionMap.get(servSession.id) != currServlet) {
+//			throw new IllegalStateException(); // session is incorrectly associated
+//		}
+		HSession servSession = (HSession) servReq.getSession();
+		
+		HResponse servRes = new HResponse(clientSocket.getOutputStream(), server, servSession, currServlet);
+		
+		try {
+			currServlet.service(servReq, servRes);
+			servRes.flushBuffer();
+		} catch (ServletException e) {
+			e.printStackTrace();
+		}
+		
+		clientSocket.close();
 		
 		return 1;
 	}

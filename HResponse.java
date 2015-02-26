@@ -1,37 +1,53 @@
 package edu.upenn.cis.cis455.webserver;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletResponse;
 
 public class HResponse implements HttpServletResponse {
 	
-	String 		contentType;
-	String 		characterEncoding;
+	HSession		currentSession;
+	Locale			currentLocale;
+	ServletEngine	server;
+	HttpServlet		servlet;
+	String 			contentType;
+	String 			characterEncoding;
+	SWriter			servletOutput;
+	boolean			isCommitted;
 	
-
-	@Override
+	public HResponse(OutputStream out, ServletEngine server, HSession s, HttpServlet servlet) {
+		currentSession	= s;
+		this.server		= server;
+		this.servlet	= servlet;
+		currentLocale 	= null;
+		servletOutput 	= new SWriter(out, s);
+		isCommitted 	= false;
+	}
+	
 	public void flushBuffer() throws IOException {
-		// TODO Auto-generated method stub
-
+		setContentType("text/html");
+		setCharacterEncoding(getCharacterEncoding());
+		servletOutput.flush();
+		isCommitted = servletOutput.committed;
 	}
 
-	@Override
 	public int getBufferSize() {
-		// TODO Auto-generated method stub
-		return 0;
+		return servletOutput.bufferSize;
 	}
 
-	@Override
 	public String getCharacterEncoding() {
 		return "ISO-8859-1";
 	}
 
-	@Override
 	public String getContentType() {
 		if (contentType == null) {
 			return "text/html";
@@ -40,169 +56,171 @@ public class HResponse implements HttpServletResponse {
 		}
 	}
 
-	@Override
 	public Locale getLocale() {
-		// TODO Auto-generated method stub
-		return null;
+		return currentLocale;
 	}
-
-	@Override
+	
 	public ServletOutputStream getOutputStream() throws IOException {
 		return null;
 	}
 
-	@Override
 	public PrintWriter getWriter() throws IOException {
-		// TODO Auto-generated method stub
-		return null;
+		return servletOutput;
 	}
 
-	@Override
 	public boolean isCommitted() {
-		// TODO Auto-generated method stub
-		return false;
+		isCommitted = servletOutput.committed;
+		return isCommitted;
 	}
 
-	@Override
 	public void reset() {
-		// TODO Auto-generated method stub
-
+		servletOutput.buffer 		= new StringBuffer();
+		servletOutput.bufferSize 	= Integer.MAX_VALUE;
+		servletOutput.headers 		= new HashMap<String,String>();
+		servletOutput.errorOccured	= false;
 	}
 
-	@Override
 	public void resetBuffer() {
-		// TODO Auto-generated method stub
-
+		servletOutput.buffer 		= new StringBuffer();
+		servletOutput.bufferSize 	= Integer.MAX_VALUE;
 	}
 
-	@Override
 	public void setBufferSize(int arg0) {
-		// TODO Auto-generated method stub
-
+		servletOutput.setBufferSize(arg0);
 	}
 
-	@Override
 	public void setCharacterEncoding(String arg0) {
+		servletOutput.headers.put("character-encoding", arg0);
 	}
 
-	@Override
 	public void setContentLength(int arg0) {
-		// TODO Auto-generated method stub
-
+		servletOutput.headers.put("Content-Length", "" + arg0);
 	}
 
-	@Override
 	public void setContentType(String arg0) {
-		// TODO Auto-generated method stub
-
+		servletOutput.headers.put("Content-Type", arg0);
 	}
 
-	@Override
 	public void setLocale(Locale arg0) {
-		// TODO Auto-generated method stub
+		currentLocale = arg0;
 
 	}
 
-	@Override
 	public void addCookie(Cookie arg0) {
-		// TODO Auto-generated method stub
-
+		servletOutput.cookieVals.put(arg0.getName(), arg0.getValue());
 	}
 
-	@Override
 	public void addDateHeader(String arg0, long arg1) {
-		// TODO Auto-generated method stub
-
+		Date date = new Date(arg1);
+		servletOutput.headers.put(arg0, date.toString());
 	}
 
-	@Override
 	public void addHeader(String arg0, String arg1) {
-		// TODO Auto-generated method stub
-
+		servletOutput.headers.put(arg0, arg1);
 	}
 
-	@Override
 	public void addIntHeader(String arg0, int arg1) {
-		// TODO Auto-generated method stub
-
+		servletOutput.headers.put(arg0, "" + arg1);
 	}
 
-	@Override
 	public boolean containsHeader(String arg0) {
-		// TODO Auto-generated method stub
-		return false;
+		return servletOutput.headers.containsKey(arg0);
 	}
 
+	public String encodeRedirectUrl(String arg0) {
+		try {
+			return new String(arg0.getBytes("UTF-8"), "UTF-8");
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+		return arg0;
+	}
+	
 	@Override
 	public String encodeRedirectURL(String arg0) {
-		// TODO Auto-generated method stub
-		return null;
+		try {
+			return new String(arg0.getBytes("UTF-8"), "UTF-8");
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+		return arg0;
 	}
 
-	@Override
-	public String encodeRedirectUrl(String arg0) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
 	public String encodeURL(String arg0) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
-	@Override
 	public String encodeUrl(String arg0) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
-	@Override
 	public void sendError(int arg0) throws IOException {
-		// TODO Auto-generated method stub
-
+		if (!isCommitted()) {
+			servletOutput.buffer = new StringBuffer();
+			servletOutput.headers = new HashMap<String, String>();
+			setContentType("text/html");
+			servletOutput.setError();
+			servletOutput.setStatus(arg0);
+			
+		} else {
+			throw new IllegalStateException();
+		}
+		flushBuffer();
 	}
 
-	@Override
 	public void sendError(int arg0, String arg1) throws IOException {
-		// TODO Auto-generated method stub
-
+		if (!isCommitted()) {
+			servletOutput.buffer = new StringBuffer();
+			servletOutput.headers = new HashMap<String, String>();
+			setContentType("text/html");
+			servletOutput.setError();
+			servletOutput.setStatus(arg0, arg1);
+			
+		} else {
+			throw new IllegalStateException();
+		}
+		flushBuffer();
 	}
 
-	@Override
 	public void sendRedirect(String arg0) throws IOException {
-		// TODO Auto-generated method stub
-
+		if (!isCommitted()) {
+			servletOutput.buffer = new StringBuffer();
+			servletOutput.headers = new HashMap<String, String>();
+			setContentType("text/html");
+			servletOutput.errorOccured = false;
+			// absolute URL
+			if (arg0.contains("localhost")) {
+				servletOutput.headers.put("Location", encodeRedirectUrl(arg0));
+			// relative URL
+			} else {
+				arg0 = server.absolutePath + arg0;
+				servletOutput.headers.put("Location", encodeRedirectUrl(arg0));
+			}
+			servletOutput.setStatus(302);
+		} else {
+			throw new IllegalStateException();
+		}
+		flushBuffer();
 	}
 
-	@Override
 	public void setDateHeader(String arg0, long arg1) {
-		// TODO Auto-generated method stub
-
+		Date date = new Date(arg1);
+		servletOutput.headers.put(arg0, date.toString());
 	}
 
-	@Override
 	public void setHeader(String arg0, String arg1) {
-		// TODO Auto-generated method stub
-
+		servletOutput.headers.put(arg0, arg1);
 	}
 
-	@Override
 	public void setIntHeader(String arg0, int arg1) {
-		// TODO Auto-generated method stub
-
+		servletOutput.headers.put(arg0, "" + arg1);
 	}
 
-	@Override
 	public void setStatus(int arg0) {
-		// TODO Auto-generated method stub
-
+		servletOutput.setStatus(arg0);
 	}
 
-	@Override
 	public void setStatus(int arg0, String arg1) {
-		// TODO Auto-generated method stub
-
+		servletOutput.setStatus(arg0);
 	}
-
 }

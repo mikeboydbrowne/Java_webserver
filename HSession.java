@@ -1,6 +1,9 @@
 package edu.upenn.cis.cis455.webserver;
 
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.Vector;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpSession;
@@ -8,34 +11,48 @@ import javax.servlet.http.HttpSessionContext;
 
 public class HSession implements HttpSession {
 	
-	public HSession() {
-		
+	HashMap<String, Object>	attributes;
+	ServletEngine			server;
+	ServletContext			context;
+	String					id;
+	long 					creationTime;
+	long					lastAccessed;
+	int						maxInactive;
+	boolean					isInvalid;
+	boolean					isNew;
+	
+	public HSession(ServletEngine server, ServContext context, String sessionId) {
+		this.server			= server;								// linking server
+		this.context		= context;								// linking context
+		this.creationTime 	= System.currentTimeMillis();			// setting the time at which the Session is created
+		this.lastAccessed 	= System.currentTimeMillis();			// setting lastAccessed
+		this.id				= sessionId;							// incrementing the sessionCounter
+		this.isNew			= true;									// just instantiating to it is new
+		this.attributes		= context.attributes;					// set attributes = to the context's
+		server.sessionCounter++;
 	}
-
 	
 	public Object getAttribute(String arg0) {
-		// TODO Auto-generated method stub
-		return null;
+		return attributes.get(arg0);
 	}
 
+	@SuppressWarnings("rawtypes")
 	public Enumeration getAttributeNames() {
-		// TODO Auto-generated method stub
-		return null;
+		Set<String> keys = attributes.keySet();
+		Vector<String> atts = new Vector<String>(keys);
+		return atts.elements();
 	}
 
 	public long getCreationTime() {
-		// TODO Auto-generated method stub
-		return 0;
+		return creationTime;
 	}
 
 	public String getId() {
-		// TODO Auto-generated method stub
-		return null;
+		return id;
 	}
 
 	public long getLastAccessedTime() {
-		// TODO Auto-generated method stub
-		return 0;
+		return lastAccessed;
 	}
 
 	public int getMaxInactiveInterval() {
@@ -44,58 +61,58 @@ public class HSession implements HttpSession {
 	}
 
 	public ServletContext getServletContext() {
-		// TODO Auto-generated method stub
-		return null;
+		return context;
 	}
 
-	@SuppressWarnings("deprecation")
-	public HttpSessionContext getSessionContext() {
-		return null;
-	}
-
+	// deprecated
 	public Object getValue(String arg0) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
+	// deprecated
 	public String[] getValueNames() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	public void invalidate() {
-		// TODO Auto-generated method stub
-
+		isInvalid = true;
+		attributes = new HashMap<String, Object>();
+	}
+	
+	public boolean isInvalid() {
+		return isInvalid;
 	}
 
+	
 	public boolean isNew() {
-		// TODO Auto-generated method stub
-		return false;
+		return isNew;
 	}
 
+	// deprecated
 	public void putValue(String arg0, Object arg1) {
-		// TODO Auto-generated method stub
-
 	}
 
 	public void removeAttribute(String arg0) {
-		// TODO Auto-generated method stub
-
+		attributes.remove(arg0);
 	}
 
+	// deprecated
 	public void removeValue(String arg0) {
-		// TODO Auto-generated method stub
-
 	}
 
 	public void setAttribute(String arg0, Object arg1) {
-		// TODO Auto-generated method stub
+		attributes.put(arg0, arg1);
 
 	}
 
 	public void setMaxInactiveInterval(int arg0) {
-		// TODO Auto-generated method stub
-
+		maxInactive = arg0;
+	}
+	
+	// deprecated
+	@SuppressWarnings("deprecation")
+	public HttpSessionContext getSessionContext() {
+		return null;
 	}
 
 }

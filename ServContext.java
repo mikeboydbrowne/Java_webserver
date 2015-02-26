@@ -15,12 +15,12 @@ import javax.servlet.ServletException;
 
 public class ServContext implements ServletContext {
 
-	private HashMap<String,Object> attributes;
-	private HashMap<String,String> initParams;
+	HashMap<String,Object> attributes = new HashMap<String,Object>();
+	HashMap<String,String> initParams = new HashMap<String,String>();
+	String contextName;
 	
-	public ServContext() {
-		attributes = new HashMap<String,Object>();
-		initParams = new HashMap<String,String>();
+	public ServContext(String s) {
+		s = contextName;
 	}
 	
 	public Object getAttribute(String arg0) {
@@ -35,7 +35,6 @@ public class ServContext implements ServletContext {
 	}
 
 	public ServletContext getContext(String arg0) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -43,6 +42,7 @@ public class ServContext implements ServletContext {
 		return initParams.get(arg0);
 	}
 
+	@SuppressWarnings("rawtypes")
 	public Enumeration getInitParameterNames() {
 		Set<String> keys = initParams.keySet();
 		Vector<String> atts = new Vector<String>(keys);
@@ -50,8 +50,7 @@ public class ServContext implements ServletContext {
 	}
 
 	public int getMajorVersion() {
-		// TODO Auto-generated method stub
-		return 0;
+		return 2;
 	}
 
 	public String getMimeType(String arg0) {
@@ -59,8 +58,7 @@ public class ServContext implements ServletContext {
 	}
 
 	public int getMinorVersion() {
-		// TODO Auto-generated method stub
-		return 0;
+		return 4;
 	}
 
 	public RequestDispatcher getNamedDispatcher(String arg0) {
@@ -84,13 +82,13 @@ public class ServContext implements ServletContext {
 		return null;
 	}
 
+	@SuppressWarnings("rawtypes")
 	public Set getResourcePaths(String arg0) {
 		return null;
 	}
 
 	public String getServerInfo() {
-		// TODO Auto-generated method stub
-		return null;
+		return getServletContextName() + "/" + getMajorVersion() + "." + getMinorVersion();
 	}
 
 	public Servlet getServlet(String arg0) throws ServletException {
@@ -98,14 +96,15 @@ public class ServContext implements ServletContext {
 	}
 
 	public String getServletContextName() {
-		// TODO Auto-generated method stub
-		return null;
+		return contextName;
 	}
 
+	@SuppressWarnings("rawtypes")
 	public Enumeration getServletNames() {
 		return null;
 	}
 
+	@SuppressWarnings("rawtypes")
 	public Enumeration getServlets() {
 		return null;
 	}
