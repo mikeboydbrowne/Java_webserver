@@ -95,6 +95,7 @@ public class SProcessingThread implements Runnable {
 			String[]	fileReq 		= requestParams[0].split(" ");
 			boolean servletReq			= false;			
 			fileName 					= fileReq[1];
+			urlOrig = "";
 			
 			// checking to see if request matches special servlet URL
 			for (String s : server.urlMap.keySet()) {
@@ -102,15 +103,14 @@ public class SProcessingThread implements Runnable {
 				
 				// modifying s to match with fileName
 				if (s.endsWith("/*")) {
-					urlMatch 	= s.substring(0, s.length() - 2);
-					urlOrig 	= s;
+					urlMatch 	= s.substring(0, s.length() - 1);
 				} else if (s.endsWith("*"))  {
 					urlMatch 	= s.substring(0, s.length() - 1);
-					urlOrig 	= s;
 				}
 				
 				// matching with urls
 				if (fileName.startsWith(urlMatch) || fileName.startsWith("/" + urlMatch) || fileName.startsWith(urlMatch + "/")) {
+					urlOrig = s;
 					servletReq = true;
 				}
 			}
